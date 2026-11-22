@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Feature Scaling</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['$','$'],['\\(','\\)']],displayMath:[['$$','$$'],['\\[','\\]']]}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<style>
+:root{
+ --royal-purple:#44345F;
+ --midnight-violet:#292039;
+ --muted-gold:#C5AA68;
+ --lavender-mist:#E5DEF0;
+ --pearl:#F3F0F8;
+ --surface:#FFFFFF;
+ --ink:#383142;
+ --muted:#756D80;
+ --border:#DED7E8;
+ --code-bg:#292039;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--pearl);color:var(--ink);font:16px/1.65 'Segoe UI',Arial,sans-serif}
+.site-header{padding:20px 5% 30px;color:#fff;background:linear-gradient(135deg,var(--midnight-violet),var(--royal-purple));border-bottom:4px solid var(--muted-gold)}
+.header-inner{width:min(1100px,100%);margin:0 auto}
+.site-header h1{margin:0;font-size:clamp(1.65rem,3vw,2.55rem);line-height:1.2;letter-spacing:.005em;color:#fff}
+.site-header p{margin:9px 0 0;color:#D9D1E4}
+/* Royal Minimalist navigation: full-width, text-only, with a gold active underline. */
+.nav-ribbon{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:0;border-bottom:1px solid rgba(197,170,104,.35)}
+.nav-ribbon-top{margin:0 0 27px}
+.nav-ribbon-link{display:flex;min-width:0;min-height:48px;padding:12px 8px 9px;justify-content:center;align-items:center;text-align:center;text-decoration:none;color:var(--lavender-mist);background:transparent;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;font-size:.9rem;font-weight:700;letter-spacing:.045em;line-height:1.3;overflow-wrap:anywhere;transition:color .18s ease,background .18s ease,border-color .18s ease}
+.nav-ribbon-link:hover{color:#fff;background:rgba(229,222,240,.07)}
+.nav-ribbon-link.active{color:#fff;border-bottom-color:var(--muted-gold)}
+.nav-ribbon-link:focus-visible{outline:2px solid var(--muted-gold);outline-offset:-3px;border-radius:3px}
+main{width:min(1100px,calc(100% - 28px));margin:25px auto 52px}
+/* Ultra-slim compiler bar: compact controls with three tiny kernel-state rings. */
+.toolbar{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:4px;align-items:center;padding:2px 4px;background:var(--midnight-violet);border:1px solid rgba(197,170,104,.5);border-radius:7px;margin-bottom:14px;box-shadow:0 2px 7px rgba(41,32,57,.12);backdrop-filter:blur(8px)}
+button{border:1px solid transparent;border-radius:6px;padding:3px 8px;color:#fff;background:var(--royal-purple);font-weight:800;cursor:pointer;transition:filter .15s ease,transform .15s ease,box-shadow .15s ease}
+button:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-1px);box-shadow:0 2px 6px rgba(20,12,32,.2)}
+button:disabled{opacity:.52;cursor:wait;transform:none;box-shadow:none}
+.control-btn{width:100%;display:flex;justify-content:center;align-items:center;text-align:center;white-space:nowrap;min-height:25px;padding:2px 6px;font-size:.74rem;line-height:1;border-radius:5px;font-weight:800}
+#start{background:var(--royal-purple);color:#fff;border:1px solid var(--muted-gold)}
+#runall{background:var(--muted-gold);color:var(--midnight-violet);border:1px solid #A88C4E}
+#restart{background:#695783;color:#fff;border:1px solid #8C79A4}
+#status{width:38px;min-width:38px;height:23px;display:flex;align-items:center;justify-content:center;gap:3px;margin:0;padding:0 4px;white-space:nowrap;background:rgba(68,52,95,.72);border:1px solid rgba(197,170,104,.38);border-radius:999px;overflow:visible}
+.kernel-status-ring{width:7px;height:7px;flex:0 0 7px;display:inline-block;border:1.5px solid #DC3545;border-radius:50%;background:transparent;box-shadow:0 0 0 1px rgba(220,53,69,.12)}
+#status.ready .kernel-status-ring{border-color:#35B56A;background:transparent;box-shadow:0 0 0 1px rgba(53,181,106,.12)}
+#status.busy .kernel-status-ring{border-color:var(--muted-gold);border-top-color:transparent;background:transparent;box-shadow:0 0 0 1px rgba(197,170,104,.12);animation:kernelRingSpin .75s linear infinite}
+#status.busy .kernel-status-ring:nth-child(2){animation-delay:-.18s}
+#status.busy .kernel-status-ring:nth-child(3){animation-delay:-.36s}
+#status.error .kernel-status-ring{border-color:#FF5364;background:transparent;box-shadow:0 0 0 1px rgba(255,83,100,.12)}
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+@keyframes kernelRingSpin{to{transform:rotate(360deg)}}
+/* Light reading surface inside the dark royal page framework. */
+.cell{margin:17px 0;background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 4px 15px rgba(41,32,57,.09)}
+.markdown{padding:20px 26px;background:var(--surface)}
+.markdown h1,.markdown h2,.markdown h3{color:var(--royal-purple)}
+.markdown h2{border-bottom:2px solid var(--muted-gold);padding-bottom:7px}
+.markdown table{border-collapse:collapse;display:block;overflow-x:auto}
+.markdown th,.markdown td{border:1px solid var(--border);padding:8px 11px}
+.markdown th{background:var(--lavender-mist);color:var(--midnight-violet)}
+.markdown img{display:block;max-width:100%;height:auto;margin:18px auto;border-radius:7px}
+.markdown pre{overflow:auto;background:var(--lavender-mist);color:var(--midnight-violet);padding:12px;border-radius:7px}
+.code{background:var(--midnight-violet)}
+.codehead{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--royal-purple);color:var(--pearl);border-bottom:1px solid var(--muted-gold)}
+.label{font-weight:800;color:var(--muted-gold);margin-right:auto}
+.editor{padding:10px;background:var(--midnight-violet)}
+.CodeMirror{height:auto!important;min-height:60px;background:var(--midnight-violet)!important;color:var(--pearl)!important;font:14px/1.55 Consolas,monospace}
+.CodeMirror-scroll{overflow:hidden!important;min-height:60px;max-height:none!important}
+.CodeMirror-gutters{background:#21192E!important;border:0!important}
+.cm-s-material-darker .cm-keyword{color:#D6A8F0!important}.cm-s-material-darker .cm-builtin{color:#AFC5FF!important}.cm-s-material-darker .cm-string{color:#C8E6B5!important}.cm-s-material-darker .cm-comment{color:#BEB4CC!important}.cm-s-material-darker .cm-number{color:#E6C17A!important}.cm-s-material-darker .cm-def{color:#E8CC8A!important}.cm-s-material-darker .cm-operator{color:#A6D9E8!important}
+.output{padding:13px 16px;color:var(--pearl);background:var(--midnight-violet);border-top:1px solid var(--muted-gold);overflow:auto}
+.output pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:5px 0;font:13px/1.55 Consolas,monospace}
+.output img{display:block;max-width:100%;height:auto;margin:10px auto;background:white}
+.outtitle{font-size:.75rem;color:var(--muted-gold);font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.htmlout{background:white;color:var(--ink);padding:10px;border-radius:5px;overflow:auto}
+.copy-button{background:var(--muted-gold);color:var(--midnight-violet);border:1px solid #A88C4E}
+.copy-button:hover{background:#D5BC80}
+.cell-status{width:13px;height:13px;flex:0 0 13px;display:inline-block;border-radius:50%;background:#dc3545;box-shadow:0 0 0 3px #dc354526}
+.cell-status.complete{background:#27A75A;box-shadow:0 0 0 3px #27A75A26}
+.cell-status.running{background:transparent;border:3px solid var(--muted-gold);border-top-color:transparent;box-shadow:none;animation:statusSpin .75s linear infinite}
+@keyframes statusSpin{to{transform:rotate(360deg)}}
+.running{display:none;align-items:center;gap:10px;padding:11px 14px;background:#69521F;color:#FFF4D5;font-weight:700}
+.running.on{display:flex}
+.spin{width:16px;height:16px;border:3px solid #ffffff66;border-top-color:var(--muted-gold);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.bottom-navigation-shell{width:100%;background:var(--midnight-violet);padding:18px max(14px,calc((100% - 1100px)/2));border-top:1px solid rgba(197,170,104,.55)}
+.nav-ribbon-bottom{max-width:1100px;margin:0 auto}
+footer{text-align:center;color:var(--lavender-mist);padding:20px;border-top:1px solid #695783;background:var(--midnight-violet)}
+@media(max-width:650px){
+ .site-header{padding:17px 14px 23px}
+ .nav-ribbon-top{margin-bottom:20px}
+ .nav-ribbon-link{min-height:44px;padding:10px 3px 8px;font-size:.76rem;letter-spacing:.01em}
+ main{width:calc(100% - 20px);margin:18px auto 36px}
+ .toolbar{grid-template-columns:repeat(3,minmax(0,1fr)) 38px;gap:3px;padding:2px 3px}
+ .control-btn{min-height:24px;padding:2px 2px;font-size:.68rem;line-height:1;letter-spacing:-.01em}
+ #status{grid-column:auto;width:36px;min-width:36px;height:22px;gap:2px;padding:0 3px}
+ .kernel-status-ring{width:6px;height:6px;flex-basis:6px}
+ .markdown{padding:16px}
+ .bottom-navigation-shell{padding:12px 10px}
+}
+</style></head>
+<body data-theme="Royal Midnight Purple &amp; Gold"><header class="site-header"><div class="header-inner">
+<nav id="top-navigation" class="nav-ribbon nav-ribbon-top" aria-label="Top navigation"></nav>
+<h1>Feature Scaling</h1><p>Interactive notebook: read the notes, edit Python code and run cells in your browser.</p>
+</div></header>
+<main><div class="toolbar" role="group" aria-label="Python kernel controls"><button id="start" class="control-btn start-btn" onclick="startKernel()">Start Python</button><button id="runall" class="control-btn runall-btn" onclick="runAll()">Run All</button><button id="restart" class="control-btn reset-btn" onclick="restartKernel()">Reset Kernel</button><span id="status" class="idle" role="status" aria-live="polite" aria-label="Python is not started"><span class="kernel-status-ring" aria-hidden="true"></span><span class="kernel-status-ring" aria-hidden="true"></span><span class="kernel-status-ring" aria-hidden="true"></span><span id="status-text" class="sr-only">Python is not started</span></span></div><div id="notebook"></div></main>
+<div class="bottom-navigation-shell"><nav id="bottom-navigation" class="nav-ribbon nav-ribbon-bottom" aria-label="Bottom navigation"></nav></div>
+<footer>Dr. Blesson George and Dr. Kiran Mathew</footer>
+<script id="data" type="application/json">[{"cell_type": "markdown", "source": "# Feature Scaling: Standardisation and Normalisation\n\n**A practical introduction to feature scaling using the Wine dataset from scikit-learn.**\n\n## Learning objectives\n\nBy the end of this notebook, students should be able to:", "attachments": {}, "outputs": []}, {"cell_type": "markdown", "source": "- Explain why numerical features may need scaling.\n- Distinguish standardisation and min–max normalisation.\n- Load a dataset from scikit-learn.\n- Apply scaling with explicit, separate scikit-learn commands.\n- Compare feature distributions before and after scaling.\n- Understand why scaling parameters must be learned from training data only.\n\n## 1. Introduction\n\nMany datasets contain numerical features measured on different scales. For example, one variable may be measured in millimetres while another is measured in kilograms. A feature with a large numerical range can dominate distance calculations or optimisation if the variables are not scaled appropriately.\n\n**Feature scaling** transforms numerical variables so that their magnitudes are comparable. It does not normally change the number of observations or the meaning of the target variable.\n\nScaling is particularly important for methods that use distances or gradient-based optimisation, such as K-nearest neighbours, support vector machines and many neural-network training procedures. Tree-based methods are generally much less sensitive to feature scale.\n\nThis notebook demonstrates two common transformations: standardisation and min–max scaling.", "attachments": {}, "outputs": []}, {"cell_type": "markdown", "source": "## 2. Import libraries", "attachments": {}, "outputs": []}, {"cell_type": "code", "source": "import pandas as pd\nimport matplotlib.pyplot as plt\nfrom sklearn.datasets import load_wine\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.preprocessing import StandardScaler, MinMaxScaler", "attachments": {}, "outputs": []}, {"cell_type": "markdown", "source": "## 3. Load the Wine dataset\n\nThe Wine dataset is included in scikit-learn. Its numerical features describe chemical properties of wine samples and have different units and ranges. We use the feature matrix only to demonstrate scaling; no classification model is trained.", "attachments": {}, "outputs": []}, {"cell_type": "code", "source": "wine = load_wine(as_frame=True)\nX = wine.data.copy()\n\nprint(\"Dataset shape:\", X.shape)\ndisplay(X.head())", "attachments": {}, "outputs": []}, {"cell_type": "markdown", "source": "## 4. Inspect feature scales\n\nDescriptive statistics such as minimum, maximum, mean and standard deviation help reveal differences in feature magnitudes. For example, a feature measured in the hundreds may have a much larger numerical range than a feature measured in fractions.", "attachments": {}, "outputs": []}, {"cell_type": "code", "source": "scale_summary = X.describe().T[\n    [\"mean\", \"std\", \"min\", \"max\"]\n]\ndisplay(scale_summary)", "attachments": {}, "outputs": []}, {"cell_type": "markdown", "source": "## 5. Visualise the original feature distributions\n\nThe box plot shows the spread of each feature. Since the features have different units and ranges, some variables may appear compressed when displayed on the same vertical scale.", "attachments": {}, "outputs": []}, {"cell_type": "code", "source": "plt.figure(figsize=(12, 5))\nX.boxplot(rot=75)\nplt.title(\"Original feature scales\")\nplt.ylabel(\"Feature value\")\nplt.tight_layout()\nplt.show()", "attachments": {}, "outputs": []}, {"cell_type": "markdown", "source": "## 6. Split the data before scaling\n\nScaling parameters must be estimated using training data only. If the mean, standard deviation, minimum or maximum is calculated from the entire dataset before splitting, information from the test set enters the preprocessing step. This is a form of data leakage.\n\nWe therefore split the observations first. The target is not used in this scaling-only demonstration; a random split is sufficient to illustrate the correct order.", "attachments": {}, "outputs": []}, {"cell_type": "code", "source": "X_train, X_test = train_test_split(\n    X,\n    test_size=0.20,\n    random_state=42,\n    shuffle=True\n)\n\nprint(\"Training data:\", X_train.shape)\nprint(\"Testing data :\", X_test.shape)", "attachments": {}, "outputs": []}, {"cell_type": "markdown", "source": "## 7. Standardisation (Z-score scaling)\n\nStandardisation subtracts the training-set mean and divides by the training-set standard deviation:\n\n$$\nz = \\frac{x-\\mu_{\\mathrm{train}}}{\\sigma_{\\mathrm{train}}}.\n$$\n\nAfter transformation, each training feature has approximately zero mean and unit standard deviation. Test observations are transformed using the training-set statistics; they are not used to calculate new statistics.\n\n`fit()` learns the mean and standard deviation. `transform()` applies the learned transformation.", "attachments": {}, "outputs": []}, {"cell_type": "code", "source": "standard_scaler = StandardScaler()\n\n# Learn scaling parameters from training data only\nstandard_scaler.fit(X_train)\n\n# Apply the same transformation to training and test data\nX_train_standard = pd.DataFrame(\n    standard_scaler.transform(X_train),\n    columns=X.columns,\n    index=X_train.index\n)\nX_test_standard = pd.DataFrame(\n    standard_scaler.transform(X_test),\n    columns=X.columns,\n    index=X_test.index\n)\n\ndisplay(X_train_standard.head())", "attachments": {}, "outputs": []}, {"cell_type": "markdown", "source": "## 8. Verify standardisation\n\nThe means of the standardised training features should be close to zero, and their standard deviations should be close to one. Small numerical differences can occur because of floating-point arithmetic and the convention used for standard deviation.", "attachments": {}, "outputs": []}, {"cell_type": "code", "source": "standard_summary = pd.DataFrame({\n    \"Training mean after scaling\": X_train_standard.mean(),\n    \"Training standard deviation\": X_train_standard.std(ddof=0)\n})\ndisplay(standard_summary.head(10))", "attachments": {}, "outputs": []}, {"cell_type": "markdown", "source": "## 9. Min–max scaling\n\nMin–max scaling maps values to a selected interval, commonly [0, 1]:\n\n$$\nx' = \\frac{x-x_{\\min,\\mathrm{train}}}\n{x_{\\max,\\mathrm{train}}-x_{\\min,\\mathrm{train}}}.\n$$\n\nThe minimum and maximum are learned from the training data. A test value may fall outside [0, 1] if it is smaller or larger than the training-set range. This is expected and does not mean the transformation failed.", "attachments": {}, "outputs": []}, {"cell_type": "code", "source": "minmax_scaler = MinMaxScaler(feature_range=(0, 1))\nminmax_scaler.fit(X_train)\n\nX_train_minmax = pd.DataFrame(\n    minmax_scaler.transform(X_train),\n    columns=X.columns,\n    index=X_train.index\n)\nX_test_minmax = pd.DataFrame(\n    minmax_scaler.transform(X_test),\n    columns=X.columns,\n    index=X_test.index\n)\n\ndisplay(X_train_minmax.head())", "attachments": {}, "outputs": []}, {"cell_type": "markdown", "source": "## 10. Compare the transformed ranges\n\nThe table compares the minimum and maximum values in the training data before scaling and after min–max scaling. The training values for each transformed feature should lie between 0 and 1.", "attachments": {}, "outputs": []}, {"cell_type": "code", "source": "range_comparison = pd.DataFrame({\n    \"Original minimum\": X_train.min(),\n    \"Original maximum\": X_train.max(),\n    \"Scaled minimum\": X_train_minmax.min(),\n    \"Scaled maximum\": X_train_minmax.max()\n})\ndisplay(range_comparison)", "attachments": {}, "outputs": []}, {"cell_type": "markdown", "source": "## 11. Visual comparison of selected features\n\nThe plots below compare two selected features before and after standardisation. The transformed values are now expressed on a comparable scale, allowing their distributions to be viewed together more clearly.", "attachments": {}, "outputs": []}, {"cell_type": "code", "source": "selected_features = list(X.columns[:4])\n\nfig, axes = plt.subplots(1, 2, figsize=(12, 4))\nX_train[selected_features].boxplot(ax=axes[0], rot=45)\naxes[0].set_title(\"Before standardisation\")\naxes[0].set_ylabel(\"Original units\")\n\nX_train_standard[selected_features].boxplot(ax=axes[1], rot=45)\naxes[1].set_title(\"After standardisation\")\naxes[1].set_ylabel(\"Z-score\")\nplt.tight_layout()\nplt.show()", "attachments": {}, "outputs": []}, {"cell_type": "markdown", "source": "## 12. Standardisation versus min–max scaling\n\n| Property | Standardisation | Min–max scaling |\n|---|---|---|\n| Formula | Subtract mean, divide by standard deviation | Shift and divide by range |\n| Typical output | Mean near 0, standard deviation near 1 | Training values in [0, 1] |\n| Sensitivity to outliers | Can be affected | Strongly affected |\n| Fixed output interval | No | Yes, for training data |\n| Common use | Distance-based and optimisation methods | Methods needing bounded input ranges |\n\nNeither method is universally best. The choice depends on the feature distributions, algorithm and scientific meaning of the variables.\n\n## 13. Important points\n\n- Scale numerical features when the chosen method is sensitive to feature magnitude.\n- Do not scale target labels as part of ordinary feature scaling.\n- Split the data before fitting a scaler.\n- Fit the scaler on training data only.\n- Apply the same fitted scaler to validation and test data.\n- Do not assume that every machine-learning algorithm requires scaling.\n\n## Practice exercises\n\n1. Apply standardisation to the Iris dataset.\n2. Apply min–max scaling to only three selected features.\n3. Compare the mean and standard deviation before and after standardisation.\n4. Find whether any scaled test values fall outside [0, 1] and explain why.\n5. Explain why fitting a scaler on the complete dataset before splitting causes data leakage.", "attachments": {}, "outputs": []}]</script>
+<script>
+const cells=JSON.parse(document.getElementById('data').textContent), packages=["numpy", "pandas", "scikit-learn", "matplotlib", "ipython"], navigation=[["HOME", "../index.html"], ["CONTENTS", "../course_content.html"], ["CONTACT", "../contact.html"]], activeNavigationLabel="HOME";
+let worker=null,ready=false,starting=false,req=0,pending=new Map(),codeCells=[],runningAll=false;
+const root=document.getElementById('notebook'),statusEl=document.getElementById('status'),statusTextEl=document.getElementById('status-text');
+function status(s){
+ const message=String(s);
+ const lower=message.toLowerCase();
+ statusTextEl.textContent=message;
+
+ statusEl.setAttribute('aria-label',message);
+ statusEl.classList.remove('idle','busy','ready','error');
+ let state='idle';
+ if(lower.includes('failed')||lower.includes('error')||lower.includes('fatal')) state='error';
+ else if(lower.includes('ready')) state='ready';
+ else if(lower.includes('starting')||lower.includes('loading')||lower.includes('initializ')||lower.includes('running')||lower.includes('progress')||lower.includes('preparing')||lower.includes('installing')) state='busy';
+ statusEl.classList.add(state);
+}
+function el(tag,cls){let x=document.createElement(tag);if(cls)x.className=cls;return x}
+function renderNavigation(id){
+    const bar=document.getElementById(id);
+    const activeLabel=String(activeNavigationLabel||'').trim().toLocaleLowerCase();
+    bar.replaceChildren();
+    for(const item of navigation){
+        const label=String(item[0]);
+        const link=el('a','nav-ribbon-link');
+        link.textContent=label;
+        link.href=String(item[1]);
+        if(activeLabel && label.trim().toLocaleLowerCase()===activeLabel){
+            link.classList.add('active');
+            link.setAttribute('aria-current','page');
+        }
+        bar.appendChild(link);
+    }
+}
+async function copyCode(code,button){const old=button.textContent;try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(code)}else{const area=document.createElement('textarea');area.value=code;area.setAttribute('readonly','');area.style.position='fixed';area.style.left='-9999px';document.body.appendChild(area);area.select();const ok=document.execCommand('copy');area.remove();if(!ok)throw new Error('Browser blocked clipboard access')}button.textContent='Copied!'}catch(err){console.error('Copy failed:',err);button.textContent='Copy failed'}window.setTimeout(()=>{button.textContent=old},1400)}
+function markdownSource(c){let s=c.source||'';return s.replace(/!\[([^\]]*)\]\(attachment:([^)]+)\)/g,(m,a,n)=>{let x=c.attachments&&c.attachments[n];if(!x)return m;let mime=Object.keys(x)[0];return '<img alt="'+a.replace(/"/g,'&quot;')+'" src="data:'+mime+';base64,'+x[mime]+'">'});}
+function addText(parent,t){if(t===undefined||t===null||t==='')return;let p=el('pre');p.textContent=String(t);parent.appendChild(p)}
+function savedOutputs(c,out){if(!true||!c.outputs)return;for(let o of c.outputs){if(o.output_type==='stream')addText(out,o.text);else if(o.output_type==='error')addText(out,(o.ename||'Error')+': '+(o.evalue||'')+'\\n'+(o.traceback||[]).join('\\n'));else if(o.data){let d=o.data;if(d['image/png']||d['image/jpeg']){let im=el('img');im.src='data:'+(d['image/png']?'image/png':'image/jpeg')+';base64,'+(d['image/png']||d['image/jpeg']);out.appendChild(im)}else if(d['image/svg+xml']||d['text/html']){let box=el('div','htmlout');box.innerHTML=DOMPurify.sanitize(d['image/svg+xml']||d['text/html']);out.appendChild(box)}else if(d['text/plain'])addText(out,d['text/plain'])}}}
+function render(){let n=0;for(let c of cells){if(c.cell_type==='markdown'){let w=el('section','cell markdown');w.innerHTML=DOMPurify.sanitize(marked.parse(markdownSource(c)));root.appendChild(w)}else if(c.cell_type==='code'){n++;let w=el('section','cell code'),h=el('div','codehead'),indicator=el('span','cell-status');indicator.title='Not executed';indicator.setAttribute('aria-label','Not executed');let lab=el('span','label');lab.textContent=true?'Code Cell '+n:'Python';let b=el('button');b.textContent='Run Cell';b.onclick=()=>runCell(w);let cp=el('button','copy-button');cp.textContent='Copy';cp.title='Copy this code cell to the clipboard';cp.onclick=()=>copyCode(w._ed.getValue(),cp);h.append(indicator,lab,b,cp);w.appendChild(h);let host=el('div','editor');w.appendChild(host);let ed=CodeMirror(host,{value:c.source||'',mode:'python',theme:'material-darker',lineNumbers:true,lineWrapping:true,indentUnit:4,tabSize:4,viewportMargin:Infinity,extraKeys:{'Tab':cm=>cm.replaceSelection('    '),'Shift-Enter':()=>runCell(w)}});ed.setSize(null,'auto');requestAnimationFrame(()=>{ed.setSize(null,'auto');ed.refresh()});let r=el('div','running');r.innerHTML='<span class="spin"></span>Python is running. Please wait; this calculation may take some time.';w.appendChild(r);let o=el('div','output');savedOutputs(c,o);w.appendChild(o);w._ed=ed;w._run=b;w._runbar=r;w._out=o;w._indicator=indicator;codeCells.push(w);root.appendChild(w)}}if(window.MathJax&&MathJax.typesetPromise)MathJax.typesetPromise()}
+function workerSource(){return `importScripts('https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js');let py=null,ready=false,out='';async function init(pkgs){postMessage({type:'status',text:'Loading Python runtime...'});py=await loadPyodide();for(let p of pkgs){postMessage({type:'status',text:'Loading '+p+'...'});try{await py.loadPackage(p)}catch(e){postMessage({type:'warning',text:'Could not load '+p+': '+e})}}await py.runPythonAsync("import matplotlib\\nmatplotlib.use('Agg', force=True)");py.setStdout({batched:s=>{out+=s+'\\n'}});py.setStderr({batched:s=>{out+=s+'\\n'}});ready=true;postMessage({type:'ready'})}onmessage=async e=>{let m=e.data;if(m.type==='init'){try{await init(m.packages)}catch(x){postMessage({type:'fatal',text:String(x)})}}else if(m.type==='run'){if(!ready){postMessage({type:'result',id:m.id,error:'Python is not ready'});return}out='';try{let value=await py.runPythonAsync(m.code);let result='';if(value!==undefined&&value!==null){try{result=value.toString()}catch(_){}}let imgs='[]';try{imgs=await py.runPythonAsync("import json, base64, io, matplotlib.pyplot as plt\\nfrom io import BytesIO\\n__imgs=[]\\nfor __n in plt.get_fignums():\\n __b=BytesIO(); plt.figure(__n).savefig(__b,format='png',dpi=120,bbox_inches='tight'); __imgs.append(base64.b64encode(__b.getvalue()).decode('ascii'))\\nplt.close('all')\\njson.dumps(__imgs)")}catch(_){}postMessage({type:'result',id:m.id,stdout:out,result:result,images:JSON.parse(imgs)})}catch(x){postMessage({type:'result',id:m.id,stdout:out,error:String(x),images:[]})}}};`}
+function startKernel(){if(ready||starting)return;starting=true;document.getElementById('start').disabled=true;status('Starting Python...');let blob=new Blob([workerSource()],{type:'text/javascript'});worker=new Worker(URL.createObjectURL(blob));worker.onmessage=e=>{let m=e.data;if(m.type==='status')status(m.text);else if(m.type==='warning')console.warn(m.text);else if(m.type==='ready'){ready=true;starting=false;status('Python is ready')}else if(m.type==='fatal'){starting=false;document.getElementById('start').disabled=false;status('Python failed to start');alert(m.text)}else if(m.type==='result')finish(m)};worker.onerror=e=>{starting=false;document.getElementById('start').disabled=false;status('Worker error');alert(e.message)};worker.postMessage({type:'init',packages:packages})}
+function setCellState(w,state){if(!w._indicator)return;w._indicator.className='cell-status '+state;let label=state==='complete'?'Execution complete':state==='running'?'Execution in progress':state==='error'?'Execution failed':'Not executed';w._indicator.title=label;w._indicator.setAttribute('aria-label',label)}
+function runCell(w){if(!ready){alert('Click Start Python and wait until Python is ready.');return Promise.resolve()}let id=++req;setCellState(w,'running');w._run.disabled=true;w._runbar.classList.add('on');status('Python is running...');return new Promise(resolve=>{pending.set(id,{w,resolve});worker.postMessage({type:'run',id,code:w._ed.getValue()})})}
+function finish(m){let p=pending.get(m.id);if(!p)return;pending.delete(m.id);let w=p.w,o=w._out;o.innerHTML='<div class="outtitle">Execution output</div>';addText(o,m.stdout);if(m.result)addText(o,m.result);for(let b of (m.images||[])){let im=el('img');im.src='data:image/png;base64,'+b;o.appendChild(im)}if(m.error){let x=el('pre');x.style.color='#ff9b9b';x.textContent=m.error;o.appendChild(x)}if(!m.stdout&&!m.result&&!(m.images||[]).length&&!m.error)addText(o,'Cell executed successfully (no output).');setCellState(w,m.error?'error':'complete');w._run.disabled=false;w._runbar.classList.remove('on');if(!pending.size)status('Python is ready');p.resolve()}
+async function runAll(){if(runningAll)return;if(!ready){alert('Start Python first.');return}runningAll=true;document.getElementById('runall').disabled=true;try{for(let w of codeCells)await runCell(w)}finally{runningAll=false;document.getElementById('runall').disabled=false}}
+function restartKernel(){if(worker)worker.terminate();worker=null;for(let p of pending.values()){p.w._run.disabled=false;p.w._runbar.classList.remove('on');setCellState(p.w,'not-run');p.resolve()}pending.clear();for(let w of codeCells){w._run.disabled=false;w._runbar.classList.remove('on');setCellState(w,'not-run')}ready=false;starting=false;runningAll=false;document.getElementById('start').disabled=false;document.getElementById('runall').disabled=false;status('Kernel restarted. All cells are marked as not executed. Click Start Python.')}
+document.getElementById('runall').style.display=true?'':'none';document.getElementById('restart').style.display=true?'':'none';renderNavigation('top-navigation');renderNavigation('bottom-navigation');status('Python is not started');render();
+</script></body></html>
